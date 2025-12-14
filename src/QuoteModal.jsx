@@ -1,30 +1,59 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "./firebase";
 
 function QuoteModal({ onClose, onQuoteAdded }) {
   const [text, setText] = useState("");
   const [author, setAuthor] = useState("");
+  const [closing, setClosing] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+  
     if (!text.trim()) return;
-
+  
     await addDoc(collection(db, "quotes"), {
       text,
       author,
       createdAt: serverTimestamp(),
       likes: 0,
-      tags: [] // reserved for later
+      tags: []
     });
-
-    onQuoteAdded();
-    onClose();
+  
+    // refresh quotes
+    onQuoteAdded?.();
+    closeModal();
   };
 
+  // actually call onClose after animation
+  useEffect(() => {
+    if (!closing) return;
+
+    setTimeout(() => {
+      onClose?.(); // unmount parent
+    }, 250); // match CSS transition
+
+    // return () => clearTimeout(timer); // clean up in case modal unmounts early
+  }, [closing, onClose]);
+
+  const closeModal = () => {
+    if (closing) return; // prevent double triggers
+    setClosing(true);
+  };
+
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    // trigger fade-in after mount
+    setTimeout(() => setVisible(true), 10);
+    // return () => clearTimeout(timer);
+  }, []);
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div
+      className={`modal-overlay ${visible && !closing ? "fade-in" : ""} ${closing ? "fade-out" : ""}`}
+      onClick={closeModal}
+    >
       <div
         className="modal"
         onClick={(e) => e.stopPropagation()}
@@ -33,7 +62,7 @@ function QuoteModal({ onClose, onQuoteAdded }) {
           <h2>Add Quote</h2>
 
           <button className="button heart"
-            type="button" onClick={onClose}>
+            type="button" onClick={closeModal}>
           ✖️
           </button>
         </div>
@@ -52,7 +81,7 @@ function QuoteModal({ onClose, onQuoteAdded }) {
           />
 
           <button className="button heart" type="submit">Save</button>
-          <button className="button heart" type="button" onClick={onClose}>
+          <button className="button heart" type="button" onClick={closeModal}>
             Cancel
           </button>
         </form>
